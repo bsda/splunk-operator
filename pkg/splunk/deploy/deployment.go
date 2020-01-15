@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Splunk Inc. All rights reserved.
+// Copyright (c) 2018-2020 Splunk Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,19 +16,18 @@ package deploy
 
 import (
 	"context"
-	"log"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha1"
+	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha2"
 	"github.com/splunk/splunk-operator/pkg/splunk/spark"
 )
 
 // ApplySparkDeployment creates or updates a Kubernetes Deployment for a given type of Spark instance.
-func ApplySparkDeployment(cr *v1alpha1.SplunkEnterprise, client client.Client, instanceType spark.InstanceType, replicas int, envVariables []corev1.EnvVar, ports []corev1.ContainerPort) error {
+func ApplySparkDeployment(cr *v1alpha2.SplunkEnterprise, client client.Client, instanceType spark.InstanceType, replicas int, envVariables []corev1.EnvVar, ports []corev1.ContainerPort) error {
 
 	deployment, err := spark.GetSparkDeployment(cr, instanceType, replicas, envVariables, ports)
 	if err != nil {
@@ -40,6 +39,9 @@ func ApplySparkDeployment(cr *v1alpha1.SplunkEnterprise, client client.Client, i
 
 // ApplyDeployment creates or updates a Kubernetes Deployment
 func ApplyDeployment(client client.Client, deployment *appsv1.Deployment) error {
+	scopedLog := log.WithName("ApplyDeployment").WithValues(
+		"name", deployment.GetObjectMeta().GetName(),
+		"namespace", deployment.GetObjectMeta().GetNamespace())
 
 	var current appsv1.Deployment
 	namespacedName := types.NamespacedName{
@@ -54,7 +56,7 @@ func ApplyDeployment(client client.Client, deployment *appsv1.Deployment) error 
 			// only update if there are material differences, as determined by comparison function
 			err = UpdateResource(client, &current)
 		} else {
-			log.Printf("No changes for Deployment %s in namespace %s\n", deployment.GetObjectMeta().GetName(), deployment.GetObjectMeta().GetNamespace())
+			scopedLog.Info("No changes for Deployment")
 		}
 	} else {
 		err = CreateResource(client, deployment)
@@ -68,12 +70,16 @@ func ApplyDeployment(client client.Client, deployment *appsv1.Deployment) error 
 // changes from revised to current. This enables us to minimize updates.
 // It returns true if there are material differences between them, or false otherwise.
 func MergeDeploymentUpdates(current *appsv1.Deployment, revised *appsv1.Deployment) bool {
+	scopedLog := log.WithName("MergeDeploymentUpdates").WithValues(
+		"name", current.GetObjectMeta().GetName(),
+		"namespace", current.GetObjectMeta().GetNamespace())
 	result := false
 
 	// check for change in Replicas count
 	if *current.Spec.Replicas != *revised.Spec.Replicas {
-		log.Printf("Replicas differ for %s: %d != %d",
-			current.GetObjectMeta().GetName(), *current.Spec.Replicas, *revised.Spec.Replicas)
+		scopedLog.Info("Deployment Replicas differ",
+			"current", *current.Spec.Replicas,
+			"revised", *revised.Spec.Replicas)
 		current.Spec.Replicas = revised.Spec.Replicas
 		result = true
 	}

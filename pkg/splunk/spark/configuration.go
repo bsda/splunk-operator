@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Splunk Inc. All rights reserved.
+// Copyright (c) 2018-2020 Splunk Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha1"
+	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha2"
 	"github.com/splunk/splunk-operator/pkg/splunk/resources"
 )
 
@@ -126,7 +126,7 @@ func GetSparkWorkerConfiguration(identifier string) []corev1.EnvVar {
 }
 
 // GetSparkRequirements returns the Kubernetes ResourceRequirements to use for Spark instances.
-func GetSparkRequirements(cr *v1alpha1.SplunkEnterprise) (corev1.ResourceRequirements, error) {
+func GetSparkRequirements(cr *v1alpha2.SplunkEnterprise) (corev1.ResourceRequirements, error) {
 	cpuRequest, err := resources.ParseResourceQuantity(cr.Spec.Resources.SparkCPURequest, "0.1")
 	if err != nil {
 		return corev1.ResourceRequirements{}, fmt.Errorf("%s: %s", "SparkCPURequest", err)
@@ -159,7 +159,7 @@ func GetSparkRequirements(cr *v1alpha1.SplunkEnterprise) (corev1.ResourceRequire
 }
 
 // GetSparkDeployment returns a Kubernetes Deployment object for the Spark master configured for a SplunkEnterprise resource.
-func GetSparkDeployment(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, replicas int, envVariables []corev1.EnvVar, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
+func GetSparkDeployment(cr *v1alpha2.SplunkEnterprise, instanceType InstanceType, replicas int, envVariables []corev1.EnvVar, ports []corev1.ContainerPort) (*appsv1.Deployment, error) {
 
 	// prepare values
 	replicas32 := int32(replicas)
@@ -217,7 +217,7 @@ func GetSparkDeployment(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType
 }
 
 // GetSparkService returns a Kubernetes Service object for Spark instances configured for a SplunkEnterprise resource.
-func GetSparkService(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, isHeadless bool, ports []corev1.ServicePort) *corev1.Service {
+func GetSparkService(cr *v1alpha2.SplunkEnterprise, instanceType InstanceType, isHeadless bool, ports []corev1.ServicePort) *corev1.Service {
 
 	serviceName := GetSparkServiceName(instanceType, cr.GetIdentifier(), isHeadless)
 	serviceTypeLabels := GetSparkAppLabels(cr.GetIdentifier(), fmt.Sprintf("%s-%s", instanceType, "service"), false)
@@ -249,7 +249,7 @@ func GetSparkService(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, i
 }
 
 // updateSparkPodTemplateWithConfig modifies the podTemplateSpec object based on configuration of the SplunkEnterprise resource.
-func updateSparkPodTemplateWithConfig(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha1.SplunkEnterprise, instanceType InstanceType) error {
+func updateSparkPodTemplateWithConfig(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha2.SplunkEnterprise, instanceType InstanceType) error {
 
 	// update security context
 	runAsUser := int64(41812)

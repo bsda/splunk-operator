@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Splunk Inc. All rights reserved.
+// Copyright (c) 2018-2020 Splunk Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,19 +16,18 @@ package deploy
 
 import (
 	"context"
-	"log"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha1"
+	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha2"
 	"github.com/splunk/splunk-operator/pkg/splunk/enterprise"
 )
 
 // ApplySplunkStatefulSet creates or updates a Kubernetes StatefulSet for a given type of Splunk Enterprise instance (indexers or search heads).
-func ApplySplunkStatefulSet(cr *v1alpha1.SplunkEnterprise, client client.Client, instanceType enterprise.InstanceType, replicas int, envVariables []corev1.EnvVar) error {
+func ApplySplunkStatefulSet(cr *v1alpha2.SplunkEnterprise, client client.Client, instanceType enterprise.InstanceType, replicas int, envVariables []corev1.EnvVar) error {
 
 	statefulSet, err := enterprise.GetSplunkStatefulSet(cr, instanceType, replicas, envVariables)
 	if err != nil {
@@ -40,6 +39,9 @@ func ApplySplunkStatefulSet(cr *v1alpha1.SplunkEnterprise, client client.Client,
 
 // ApplyStatefulSet creates or updates a Kubernetes StatefulSet
 func ApplyStatefulSet(client client.Client, statefulSet *appsv1.StatefulSet) error {
+	scopedLog := log.WithName("ApplyStatefulSet").WithValues(
+		"name", statefulSet.GetObjectMeta().GetName(),
+		"namespace", statefulSet.GetObjectMeta().GetNamespace())
 
 	var current appsv1.StatefulSet
 	namespacedName := types.NamespacedName{
@@ -54,7 +56,7 @@ func ApplyStatefulSet(client client.Client, statefulSet *appsv1.StatefulSet) err
 			// only update if there are material differences, as determined by comparison function
 			err = UpdateResource(client, &current)
 		} else {
-			log.Printf("No changes for StatefulSet %s in namespace %s\n", statefulSet.GetObjectMeta().GetName(), statefulSet.GetObjectMeta().GetNamespace())
+			scopedLog.Info("No changes for StatefulSet")
 		}
 	} else {
 		err = CreateResource(client, statefulSet)
@@ -68,12 +70,16 @@ func ApplyStatefulSet(client client.Client, statefulSet *appsv1.StatefulSet) err
 // changes from revised to current. This enables us to minimize updates.
 // It returns true if there are material differences between them, or false otherwise.
 func MergeStatefulSetUpdates(current *appsv1.StatefulSet, revised *appsv1.StatefulSet) bool {
+	scopedLog := log.WithName("MergeStatefulSetUpdates").WithValues(
+		"name", current.GetObjectMeta().GetName(),
+		"namespace", current.GetObjectMeta().GetNamespace())
 	result := false
 
 	// check for change in Replicas count
 	if *current.Spec.Replicas != *revised.Spec.Replicas {
-		log.Printf("Replicas differ for %s: %d != %d",
-			current.GetObjectMeta().GetName(), *current.Spec.Replicas, *revised.Spec.Replicas)
+		scopedLog.Info("StatefulSet Replicas differ",
+			"current", *current.Spec.Replicas,
+			"revised", *revised.Spec.Replicas)
 		current.Spec.Replicas = revised.Spec.Replicas
 		result = true
 	}

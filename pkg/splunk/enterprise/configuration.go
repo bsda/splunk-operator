@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Splunk Inc. All rights reserved.
+// Copyright (c) 2018-2020 Splunk Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha1"
+	"github.com/splunk/splunk-operator/pkg/apis/enterprise/v1alpha2"
 	"github.com/splunk/splunk-operator/pkg/splunk/resources"
 	"github.com/splunk/splunk-operator/pkg/splunk/spark"
 )
@@ -91,7 +91,7 @@ func GetSplunkConfiguration(overrides map[string]string, defaults string, defaul
 }
 
 // GetSplunkClusterConfiguration returns a collection of Kubernetes environment variables (EnvVar) to use for Splunk containers in clustered deployments
-func GetSplunkClusterConfiguration(cr *v1alpha1.SplunkEnterprise, searchHeadCluster bool, overrides map[string]string) []corev1.EnvVar {
+func GetSplunkClusterConfiguration(cr *v1alpha2.SplunkEnterprise, searchHeadCluster bool, overrides map[string]string) []corev1.EnvVar {
 
 	urls := []corev1.EnvVar{
 		{
@@ -128,7 +128,7 @@ func GetSplunkClusterConfiguration(cr *v1alpha1.SplunkEnterprise, searchHeadClus
 }
 
 // GetSplunkVolumeClaims returns a standard collection of Kubernetes volume claims.
-func GetSplunkVolumeClaims(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, labels map[string]string) ([]corev1.PersistentVolumeClaim, error) {
+func GetSplunkVolumeClaims(cr *v1alpha2.SplunkEnterprise, instanceType InstanceType, labels map[string]string) ([]corev1.PersistentVolumeClaim, error) {
 	var err error
 	var etcStorage, varStorage resource.Quantity
 
@@ -192,7 +192,7 @@ func GetSplunkVolumeClaims(cr *v1alpha1.SplunkEnterprise, instanceType InstanceT
 }
 
 // GetSplunkRequirements returns the Kubernetes ResourceRequirements to use for Splunk instances.
-func GetSplunkRequirements(cr *v1alpha1.SplunkEnterprise) (corev1.ResourceRequirements, error) {
+func GetSplunkRequirements(cr *v1alpha2.SplunkEnterprise) (corev1.ResourceRequirements, error) {
 	cpuRequest, err := resources.ParseResourceQuantity(cr.Spec.Resources.SplunkCPURequest, "0.1")
 	if err != nil {
 		return corev1.ResourceRequirements{}, fmt.Errorf("%s: %s", "SplunkCPURequest", err)
@@ -225,7 +225,7 @@ func GetSplunkRequirements(cr *v1alpha1.SplunkEnterprise) (corev1.ResourceRequir
 }
 
 // GetSplunkStatefulSet returns a Kubernetes StatefulSet object for Splunk instances configured for a SplunkEnterprise resource.
-func GetSplunkStatefulSet(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, replicas int, envVariables []corev1.EnvVar) (*appsv1.StatefulSet, error) {
+func GetSplunkStatefulSet(cr *v1alpha2.SplunkEnterprise, instanceType InstanceType, replicas int, envVariables []corev1.EnvVar) (*appsv1.StatefulSet, error) {
 
 	// prepare labels and other values
 	labels := resources.GetLabels(cr.GetIdentifier(), instanceType.ToString(), false)
@@ -297,7 +297,7 @@ func GetSplunkStatefulSet(cr *v1alpha1.SplunkEnterprise, instanceType InstanceTy
 }
 
 // GetSplunkService returns a Kubernetes Service object for Splunk instances configured for a SplunkEnterprise resource.
-func GetSplunkService(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, isHeadless bool) *corev1.Service {
+func GetSplunkService(cr *v1alpha2.SplunkEnterprise, instanceType InstanceType, isHeadless bool) *corev1.Service {
 
 	serviceName := GetSplunkServiceName(instanceType, cr.GetIdentifier(), isHeadless)
 	serviceTypeLabels := resources.GetLabels(cr.GetIdentifier(), fmt.Sprintf("%s-%s", instanceType, "service"), false)
@@ -334,7 +334,7 @@ func GetSplunkService(cr *v1alpha1.SplunkEnterprise, instanceType InstanceType, 
 }
 
 // ValidateSplunkCustomResource checks validity of a SplunkEnterprise resource and returns error if something is wrong.
-func ValidateSplunkCustomResource(cr *v1alpha1.SplunkEnterprise) error {
+func ValidateSplunkCustomResource(cr *v1alpha2.SplunkEnterprise) error {
 	// cluster sanity checks
 	if cr.Spec.Topology.SearchHeads > 0 && cr.Spec.Topology.Indexers <= 0 {
 		return errors.New("You must specify how many indexers the cluster should have")
@@ -384,7 +384,7 @@ func ValidateSplunkCustomResource(cr *v1alpha1.SplunkEnterprise) error {
 }
 
 // GetSplunkDefaults returns a Kubernetes ConfigMap containing defaults for a SplunkEnterprise resource.
-func GetSplunkDefaults(cr *v1alpha1.SplunkEnterprise) *corev1.ConfigMap {
+func GetSplunkDefaults(cr *v1alpha2.SplunkEnterprise) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetSplunkDefaultsName(cr.GetIdentifier()),
@@ -397,7 +397,7 @@ func GetSplunkDefaults(cr *v1alpha1.SplunkEnterprise) *corev1.ConfigMap {
 }
 
 // GetSplunkSecrets returns a Kubernetes Secret containing randomly generated default secrets to use for a SplunkEnterprise resource.
-func GetSplunkSecrets(cr *v1alpha1.SplunkEnterprise) *corev1.Secret {
+func GetSplunkSecrets(cr *v1alpha2.SplunkEnterprise) *corev1.Secret {
 	// generate some default secret values to share across the cluster
 	secretData := map[string][]byte{
 		"hec_token":  generateHECToken(),
@@ -528,7 +528,7 @@ func addSplunkVolumeToTemplate(podTemplateSpec *corev1.PodTemplateSpec, name str
 }
 
 // addDFCToPodTemplate modifies the podTemplateSpec object to incorporate support for DFS.
-func addDFCToPodTemplate(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha1.SplunkEnterprise) error {
+func addDFCToPodTemplate(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha2.SplunkEnterprise) error {
 	requirements, err := spark.GetSparkRequirements(cr)
 	if err != nil {
 		return err
@@ -563,7 +563,7 @@ func addDFCToPodTemplate(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha1.S
 }
 
 // updateSplunkPodTemplateWithConfig modifies the podTemplateSpec object based on configuration of the SplunkEnterprise resource.
-func updateSplunkPodTemplateWithConfig(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha1.SplunkEnterprise, instanceType InstanceType) error {
+func updateSplunkPodTemplateWithConfig(podTemplateSpec *corev1.PodTemplateSpec, cr *v1alpha2.SplunkEnterprise, instanceType InstanceType) error {
 
 	// Add custom volumes to splunk containers
 	if cr.Spec.SplunkVolumes != nil {
