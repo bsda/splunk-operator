@@ -402,6 +402,7 @@ func GetSplunkSecrets(cr *v1alpha1.SplunkEnterprise) *corev1.Secret {
 	secretData := map[string][]byte{
 		"hec_token":  generateHECToken(),
 		"password":   generateSplunkSecret(),
+		"pass4SymmKey": generateSplunkSecret(),
 		"idc_secret": generateSplunkSecret(),
 		"shc_secret": generateSplunkSecret(),
 	}
@@ -411,6 +412,7 @@ splunk:
     hec_enableSSL: 0
     hec_token: "%s"
     password: "%s"
+    pass4SymmKey: "%s"
     idc:
         secret: "%s"
     shc:
@@ -418,6 +420,7 @@ splunk:
 `,
 		secretData["hec_token"],
 		secretData["password"],
+		secretData["pass4SymmKey"],
 		secretData["idc_secret"],
 		secretData["shc_secret"]))
 
